@@ -37,10 +37,10 @@ def find_borders(pix, sensitivity):
     for y in range(l-1):
         for x in range(w-1):
             if abs(int(pix[y][x])-int(pix[y][x+1])) > m+n*sd or abs(int(pix[y][x])-int(pix[y+1][x])) > m+n*sd:
-                pix[y][x] = 0
+                pix[y][x] = 255
                 list.append((float(y)/float(l), float(x)/float(w)))
             else:
-                pix[y][x] = 255
+                pix[y][x] = 0
     data = np.asarray(list)
     return pix, data
 
@@ -65,6 +65,8 @@ def initEM(m, data): # assumes data ranges from 0-1
     return means, cov, mix
 
 def find_centers(m, d, data, max_iter):
+    if m <= 0:
+        return [], [], []
     path = []
     converged = False
     thresh = 0.00001
@@ -147,17 +149,24 @@ def test_img(m, img_path):
     #img_path = 'swarm-robotics.jpg'
     pix = get_pixel_values(img_path)
 
-    cv2.imshow('Raw',pix)
-
-    pix, data = find_borders(pix, 0.5)
+    pix, data = find_borders(pix,0.5)
     l, w = pix.shape
 
     means, cov, path = find_centers(m, d, data, 100)
 
     colored = cv2.cvtColor(pix, cv.CV_GRAY2RGB)
+    for n in range(len(path)):
+        for i in range(m):
+            x = path[n][i][0]*w
+            y = path[n][i][1]*l
+            if (x > 0 and x < w and y > 0 and y < l):
+                colored[y][x]= (0, 255, 0)
+
     for i in range(m):
-        x = means[i][0]*w
-        y = means[i][1]*l
+        y = means[i][0]*l
+        x = means[i][1]*w
+        #cov_m = cov[i*d:(i+1)*d, 0:d] = np.identity(d)*((1/float(m))**2)
+        #cv2.ellipse(colored, (x, y), (cov_m[0][0], cov_m[1][1]), 0, 360)
         for j in range(-10, 10):
             if (x+j > 0 and x+j < w):
                 colored[y][x+j] = (0, 0, 255)
@@ -166,9 +175,11 @@ def test_img(m, img_path):
                 colored[y+j][x] = (0, 0, 255)
 
 
-    cv2.imshow('Borders',pix)
-    cv2.imshow('Color And Means', colored)
     print('End {0}'.format(datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')))
+    pix_raw = get_pixel_values(img_path)
+    cv2.imshow('Raw',pix_raw)
+    #cv2.imshow('Borders',pix)
+    cv2.imshow('Color And Means', colored)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -194,12 +205,12 @@ def test(m, path):
     maxY *= 1.2
 
     data = np.zeros((len(list), 2))
-    colored = np.zeros((l, w, 3))
+    colored = np.ones((l, w, 3))*255
     for i in range(len(list)):
         x = (.1*maxX+list[i][0])/maxX
         y = (.1*maxY+list[i][1])/maxY
         data[i] = (x, y)
-        colored[int(y*l)][int(x*w)] = 255, 255, 255
+        colored[int(y*l)][int(x*w)] = 0, 0, 0
 
     d = 2
 
@@ -227,4 +238,6 @@ def test(m, path):
 
 
 #test(3, 'testB.txt')
-test_img(10, 'low_res_roomba.jpg')
+test_img(6, 'low_res_roomba.jpg')
+#test_img(0, 'swarm-robotics.jpg')
+#test_img(0, 'flower.jpg')

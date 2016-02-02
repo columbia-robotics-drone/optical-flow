@@ -27,8 +27,8 @@ def srinivasan(this_frame, last_frame):
             B[1][1] += p_y**2
 
     # Formatting these matricies so they can be multiplied together
-    A = numpy.transpose(2*A)
-    B = numpy.linalg.inv(B)
+    #A = numpy.transpose(A)
+    #B = numpy.linalg.inv(B)
 
     # Returning the product
-    return numpy.dot(A, B)
+    return numpy.transpose(numpy.dot(B, 2*A))

@@ -215,10 +215,10 @@ def test(m, path):
         #cv2.ellipse(colored, (x, y), (cov_m[0][0], cov_m[1][1]), 0, 360)
         for j in range(-10, 10):
             if (x+j > 0 and x+j < w):
-                colored[y][x+j] = (0, 0, 255)
+                colored[x+j][y] = (0, 0, 255)
         for j in range(-10, 10):
             if (y+j > 0 and y+j < l):
-                colored[y+j][x] = (0, 0, 255)
+                colored[x][y+j] = (0, 0, 255)
 
 
     cv2.imshow('Color',colored)

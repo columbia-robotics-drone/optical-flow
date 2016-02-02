@@ -105,14 +105,12 @@ def E_step(means, cov, mix, data):
             diff = np.matrix(data[n]-means[i])
             tau[n][i] = coef*math.exp(-0.5*(diff*invcov*np.transpose(diff)))
 
-    sumtau = np.zeros(m)
     for n in range(len(data)):
         l = 0
         for i in range(m):
             l += tau[n][i]
         for i in range(m):
             tau[n][i] /= l
-            #sumtau[i] += tau[n][i]
 
         ll += math.log(l)
 
@@ -154,6 +152,8 @@ def test_img(m, img_path):
 
     means, cov, path = find_centers(m, d, data, 100)
 
+    pix_raw = get_pixel_values(img_path)
+    colored_raw = cv2.cvtColor(pix_raw, cv.CV_GRAY2RGB)
     colored = cv2.cvtColor(pix, cv.CV_GRAY2RGB)
     for n in range(len(path)):
         for i in range(m):
@@ -161,23 +161,59 @@ def test_img(m, img_path):
             y = path[n][i][1]*l
             if (x > 0 and x < w and y > 0 and y < l):
                 colored[y][x]= (0, 255, 0)
+                colored_raw[y][x]= (0, 255, 0)
 
     for i in range(m):
         y = means[i][0]*l
         x = means[i][1]*w
+
+        eigen, v = np.linalg.eig(cov[i*d:(i+1)*d, 0:d])
+        angle = math.atan2(v[0][1], v[0][0])
+        if angle < 0:
+            angle += 2*math.pi
+
+        #Convert to degrees
+        angle = 180*angle/math.pi
+
+        chisquare_val = 2.4477 # 95% confidence interval
+        #Calculate the size of the minor and major axes
+        halfmajoraxissize = int(chisquare_val*math.sqrt(eigen[0])*w)
+        halfminoraxissize = int(chisquare_val*math.sqrt(eigen[1])*l)
+
         #cov_m = cov[i*d:(i+1)*d, 0:d] = np.identity(d)*((1/float(m))**2)
         #cv2.ellipse(colored, (x, y), (cov_m[0][0], cov_m[1][1]), 0, 360)
+        #cv2.ellipse(colored,(y,x),(20,10),0,0,360,255,-1)
+
+        # Confidence Circles
+
+        cv2.ellipse(colored_raw,
+                    (int(x),int(y)),
+                    (halfminoraxissize, halfmajoraxissize),
+                    angle,
+                    0,
+                    360,
+                    (255, 0, 0),
+                    1)
+        cv2.ellipse(colored,
+                    (int(x),int(y)),
+                    (halfminoraxissize, halfmajoraxissize),
+                    angle,
+                    0,
+                    360,
+                    (255, 0, 0),
+                    1)
         for j in range(-10, 10):
             if (x+j > 0 and x+j < w):
                 colored[y][x+j] = (0, 0, 255)
+                colored_raw[y][x+j] = (0, 0, 255)
         for j in range(-10, 10):
             if (y+j > 0 and y+j < l):
                 colored[y+j][x] = (0, 0, 255)
+                colored_raw[y+j][x] = (0, 0, 255)
 
 
     print('End {0}'.format(datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')))
-    pix_raw = get_pixel_values(img_path)
-    cv2.imshow('Raw',pix_raw)
+    cv2.imshow('Raw With Overlay',colored_raw)
     #cv2.imshow('Borders',pix)
     cv2.imshow('Color And Means', colored)
     cv2.waitKey(0)
@@ -205,25 +241,46 @@ def test(m, path):
     maxY *= 1.2
 
     data = np.zeros((len(list), 2))
-    colored = np.ones((l, w, 3))*255
+    colored = np.zeros((l, w, 3))
     for i in range(len(list)):
         x = (.1*maxX+list[i][0])/maxX
         y = (.1*maxY+list[i][1])/maxY
         data[i] = (x, y)
-        colored[int(y*l)][int(x*w)] = 0, 0, 0
+        colored[int(y*l)][int(x*w)] = 255, 255, 255
 
     d = 2
 
     means, cov, path = find_centers(m, d, data, 100000)
     for n in range(len(path)):
         for i in range(m):
-            colored[path[n][i][0]*w][path[n][i][1]*l] = (0, 255, 0)
+            colored[path[n][i][1]*w][path[n][i][0]*l] = (0, 255, 0)
 
     for i in range(m):
-        x = means[i][0]*w
-        y = means[i][1]*l
-        #cov_m = cov[i*d:(i+1)*d, 0:d] = np.identity(d)*((1/float(m))**2)
-        #cv2.ellipse(colored, (x, y), (cov_m[0][0], cov_m[1][1]), 0, 360)
+        y = means[i][0]*l
+        x = means[i][1]*w
+
+        eigen, v = np.linalg.eig(cov[i*d:(i+1)*d, 0:d])
+        angle = math.atan2(v[0][1], v[0][0])
+        if angle < 0:
+            angle += 2*math.pi
+
+        #Convert to degrees
+        angle = 180*angle/math.pi
+
+        chisquare_val = 2.4477 # 95% confidence interval
+        #Calculate the size of the minor and major axes
+        halfmajoraxissize = int(chisquare_val*math.sqrt(eigen[0])*w)
+        halfminoraxissize = int(chisquare_val*math.sqrt(eigen[1])*l)
+
+        # Confidence Circles
+        cv2.ellipse(colored,
+                    (int(y),int(x)),
+                    (halfmajoraxissize, halfminoraxissize),
+                    angle,
+                    0,
+                    360,
+                    (255, 0, 0),
+                    1)
         for j in range(-10, 10):
             if (x+j > 0 and x+j < w):
                 colored[x+j][y] = (0, 0, 255)
@@ -237,7 +294,8 @@ def test(m, path):
     cv2.destroyAllWindows()
 
 
-#test(3, 'testB.txt')
-test_img(6, 'low_res_roomba.jpg')
-#test_img(0, 'swarm-robotics.jpg')
+test(3, 'testB.txt')
+
+#test_img(7, 'low_res_roomba.jpg')
+#test_img(40, 'swarm-robotics.jpg')
 #test_img(0, 'flower.jpg')
